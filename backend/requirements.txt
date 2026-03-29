@@ -1,0 +1,14 @@
+fastapi
+uvicorn
+motor
+pymongo
+python-dotenv
+opencv-python
+numpy
+mtcnn
+keras-facenet
+tensorflow
+pandas
+openpyxl
+python-multipart
+scikit-learn

@@ -8,7 +8,7 @@ import os
 class FaceEngine:
     def __init__(self):
         # min_face_size=40 is much faster than default 20 for webcam/close-ups
-        self.detector = MTCNN(min_face_size=40)
+        self.detector = MTCNN()
         self.embedder = FaceNet()
         self.embeddings_path = "embeddings/stored_embeddings.pkl"
         self.load_known_faces()

@@ -1,0 +1,50 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+:root {
+  --stitch-bg: 248 250 252;
+  --stitch-surface: 255 255 255;
+  --stitch-border: 226 232 240;
+  --stitch-muted: 100 116 139;
+  --stitch-accent: 99 102 241;
+  --stitch-accent2: 139 92 246;
+}
+
+.dark {
+  --stitch-bg: 15 23 42;
+  --stitch-surface: 30 41 59;
+  --stitch-border: 51 65 85;
+  --stitch-muted: 148 163 184;
+  --stitch-accent: 129 140 248;
+  --stitch-accent2: 167 139 250;
+}
+
+@layer base {
+  body {
+    @apply min-h-screen bg-stitch-bg text-slate-900 dark:text-slate-100 antialiased;
+    background-image:
+      radial-gradient(ellipse 120% 80% at 0% -20%, rgb(99 102 241 / 0.12), transparent),
+      radial-gradient(ellipse 80% 60% at 100% 0%, rgb(139 92 246 / 0.1), transparent);
+  }
+  .dark body {
+    background-image:
+      radial-gradient(ellipse 120% 80% at 0% -20%, rgb(99 102 241 / 0.2), transparent),
+      radial-gradient(ellipse 80% 60% at 100% 0%, rgb(139 92 246 / 0.15), transparent);
+  }
+}
+
+@layer components {
+  .card-stitch {
+    @apply rounded-3xl border border-stitch-border/60 bg-stitch-surface shadow-sm;
+  }
+  .btn-primary {
+    @apply inline-flex items-center justify-center gap-2 rounded-2xl bg-gradient-to-r from-indigo-500 to-violet-500 px-5 py-2.5 text-sm font-semibold text-white shadow-lg shadow-indigo-500/25 transition hover:brightness-110 active:scale-[0.98];
+  }
+  .btn-ghost {
+    @apply inline-flex items-center justify-center gap-2 rounded-2xl border border-stitch-border bg-stitch-surface/60 px-4 py-2 text-sm font-medium text-slate-700 transition hover:bg-stitch-surface dark:text-slate-200;
+  }
+  .input-stitch {
+    @apply w-full rounded-2xl border border-stitch-border bg-white/80 px-4 py-3 text-sm outline-none ring-indigo-500/30 placeholder:text-slate-400 focus:border-indigo-400 focus:ring-2 dark:bg-slate-900/50 dark:text-slate-100;
+  }
+}

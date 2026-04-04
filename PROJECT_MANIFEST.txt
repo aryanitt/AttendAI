@@ -1,0 +1,20 @@
+Smart Attendance (MultiClass_Face_Attendance) — file manifest
+Generated: use this list to verify your folder is complete.
+
+NOTE: backend/.env is NOT included in SmartAttendance_PROJECT.zip (secrets).
+      Copy backend/.env.example to .env and fill MONGO_URI locally.
+
+Core layout:
+  README.md
+  .gitignore
+  backend/run.py
+  backend/requirements.txt
+  backend/.env.example
+  backend/scripts/check_mongo.py
+  backend/app/  (Flask app, routes, services)
+  frontend/     (Vite + React; run npm install after copy)
+
+Backup zip (source only, no node_modules):
+  SmartAttendance_PROJECT.zip
+
+In Cursor / VS Code: File > Save All (Ctrl+K S) saves any unsaved editor tabs to this folder.

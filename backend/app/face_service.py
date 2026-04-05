@@ -38,36 +38,49 @@ def _threshold() -> float:
     return float(current_app.config.get("FACE_THRESHOLD", 0.55))
 
 
-def embedding_path(class_id: str) -> str:
-    root = current_app.config["EMBEDDING_ROOT"]
-    os.makedirs(root, exist_ok=True)
-    return os.path.join(root, f"{class_id}.pkl")
+def _grid_filename(class_id: str) -> str:
+    return f"embeddings_{class_id}.pkl"
 
 
 def load_embeddings(class_id: str) -> dict[str, np.ndarray]:
-    path = embedding_path(class_id)
-    if not os.path.isfile(path):
+    from app.db import get_gridfs
+    fs = get_gridfs()
+    fn = _grid_filename(class_id)
+    try:
+        f = fs.find_one({"filename": fn})
+        if not f:
+            return {}
+        raw = pickle.loads(f.read())
+        out = {}
+        for sid, vec in raw.items():
+            out[str(sid)] = np.asarray(vec, dtype=np.float64)
+        return out
+    except Exception as e:
+        print(f"DEBUG: Error loading GridFS embeddings: {e}")
         return {}
-    with open(path, "rb") as f:
-        raw = pickle.load(f)
-    out = {}
-    for sid, vec in raw.items():
-        out[str(sid)] = np.asarray(vec, dtype=np.float64)
-    return out
 
 
 def save_embeddings(class_id: str, data: dict[str, np.ndarray]) -> None:
-    path = embedding_path(class_id)
-    os.makedirs(os.path.dirname(path), exist_ok=True)
+    from app.db import get_gridfs
+    fs = get_gridfs()
+    fn = _grid_filename(class_id)
+    
     serial = {k: v.tolist() for k, v in data.items()}
-    with open(path, "wb") as f:
-        pickle.dump(serial, f)
+    blob = pickle.dumps(serial)
+    
+    # Remove old version if exists
+    old = fs.find_one({"filename": fn})
+    if old:
+        fs.delete(old._id)
+        
+    fs.put(blob, filename=fn)
 
 
 def remove_student_embedding(class_id: str, student_id: str) -> None:
     data = load_embeddings(class_id)
-    data.pop(str(student_id), None)
-    save_embeddings(class_id, data)
+    if str(student_id) in data:
+        data.pop(str(student_id))
+        save_embeddings(class_id, data)
 
 
 def _cosine(a: np.ndarray, b: np.ndarray) -> float:
@@ -101,12 +114,21 @@ def get_embedding_from_bgr(img_bgr: np.ndarray) -> np.ndarray:
     DeepFace = _deepface()
     rgb = cv2.cvtColor(img_bgr, cv2.COLOR_BGR2RGB)
     
-    reps = DeepFace.represent(
-        img_path=rgb,
-        model_name=_model_name(),
-        enforce_detection=False,
-        detector_backend="opencv",
-    )
+    try:
+        reps = DeepFace.represent(
+            img_path=rgb,
+            model_name=_model_name(),
+            enforce_detection=True,
+            detector_backend="opencv",
+        )
+    except Exception as e:
+        print(f"DEBUG: opencv fallback triggered ({e})")
+        reps = DeepFace.represent(
+            img_path=rgb,
+            model_name=_model_name(),
+            enforce_detection=False,
+            detector_backend="skip",
+        )
     
     if not reps:
         print("DEBUG: DeepFace.represent returned no results")
@@ -190,6 +212,8 @@ def enroll_student_face(class_id: str, student_id: str, images_list: list[bytes]
             emb = get_embedding_from_bgr(bgr)
             embeddings.append(emb)
         except Exception as e:
+            import traceback
+            traceback.print_exc()
             print(f"DEBUG: Error processing one image for {student_id}: {e}")
             continue
             

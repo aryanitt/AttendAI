@@ -58,32 +58,28 @@ def require_auth(f):
     @functools.wraps(f)
     def wrapped(*args, **kwargs):
         token = get_bearer_token()
-        data = decode_token(token) if token else None
-        
-        # Bypassing for testing as requested
+        if not token:
+            return jsonify({"error": "Authentication token required"}), 401
+            
+        data = decode_token(token)
         if not data or not data.get("sub"):
-            request.teacher = {
-                "_id": ObjectId("507f1f77bcf86cd799439011"), # Mock ID
-                "name": "Debug Teacher",
-                "email": "debug@example.com",
-                "role": "admin"
-            }
-            request.token_role = "admin"
-            return f(*args, **kwargs)
-
-        teacher = get_db().teachers.find_one({"_id": ObjectId(data["sub"])})
+            return jsonify({"error": "Invalid or expired token"}), 401
+            
+        try:
+            tid = ObjectId(data["sub"])
+        except Exception:
+            return jsonify({"error": "Invalid user ID in token"}), 401
+            
+        db = get_db()
+        teacher = db.teachers.find_one({"_id": tid})
         if not teacher:
-            # Even if user deleted from DB, allow mock access
-            request.teacher = {
-                "_id": ObjectId(data["sub"]),
-                "name": "Recovered User",
-                "role": data.get("role", "teacher")
-            }
-        else:
-            request.teacher = teacher
-        
+            return jsonify({"error": "User not found"}), 401
+            
+        request.teacher = teacher
         request.token_role = data.get("role", "teacher")
         return f(*args, **kwargs)
+
+    return wrapped
 
     return wrapped
 

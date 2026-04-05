@@ -15,12 +15,16 @@ export default function Dashboard() {
   });
   const [busy, setBusy] = useState(false);
 
+  const [error, setError] = useState(false);
+
   const load = async () => {
     try {
       const { data } = await client.get("/dashboard/stats");
       setStats(data);
+      setError(false);
     } catch {
       setStats(null);
+      setError(true);
     }
   };
 
@@ -73,6 +77,24 @@ export default function Dashboard() {
 
   return (
     <div className="space-y-8">
+      {error && (
+        <div className="rounded-2xl border border-red-200 bg-red-50/50 p-4 dark:border-red-500/20 dark:bg-red-500/10">
+          <div className="flex items-center gap-3">
+            <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-red-100 text-red-600 dark:bg-red-900/40 dark:text-red-400">
+              <span className="text-lg font-bold">!</span>
+            </div>
+            <div>
+              <h3 className="font-display font-semibold text-red-900 dark:text-red-400">
+                Server Connection Error
+              </h3>
+              <p className="text-sm text-red-700/80 dark:text-red-400/60">
+                Cannot connect to the backend. Please ensure the Python server is running (python run.py).
+              </p>
+            </div>
+          </div>
+        </div>
+      )}
+
       <div className="grid gap-4 sm:grid-cols-3">
         <div className="card-stitch p-6">
           <p className="text-xs font-medium uppercase tracking-wide text-slate-500">

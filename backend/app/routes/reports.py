@@ -32,10 +32,10 @@ def _xlsx_response(data: bytes, filename: str):
 
 
 @bp.get("/classes/<class_id>/reports/daily")
+@require_auth
 def report_daily(class_id):
     db = get_db()
-    # Mock teacher_id for debug
-    teacher_id = ObjectId("507f1f77bcf86cd799439011")
+    teacher_id = request.teacher["_id"]
     c, cid = _owned_class(db, class_id, teacher_id)
     if not c:
         return jsonify({"error": "Class not found"}), 404
@@ -63,10 +63,10 @@ def report_daily(class_id):
 
 
 @bp.get("/classes/<class_id>/reports/monthly")
+@require_auth
 def report_monthly(class_id):
     db = get_db()
-    # Mock teacher_id for debug
-    teacher_id = ObjectId("507f1f77bcf86cd799439011")
+    teacher_id = request.teacher["_id"]
     c, cid = _owned_class(db, class_id, teacher_id)
     if not c:
         return jsonify({"error": "Class not found"}), 404
@@ -106,10 +106,10 @@ def report_monthly(class_id):
 
 
 @bp.get("/classes/<class_id>/reports/student/<student_id>")
+@require_auth
 def report_student(class_id, student_id):
     db = get_db()
-    # Mock teacher_id for debug
-    teacher_id = ObjectId("507f1f77bcf86cd799439011")
+    teacher_id = request.teacher["_id"]
     c, cid = _owned_class(db, class_id, teacher_id)
     if not c:
         return jsonify({"error": "Class not found"}), 404

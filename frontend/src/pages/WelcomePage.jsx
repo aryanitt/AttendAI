@@ -60,7 +60,7 @@ export default function WelcomePage() {
               Public preview — no account needed
             </div>
             <h1 className="font-display text-3xl font-bold tracking-tight text-slate-900 dark:text-white sm:text-4xl">
-              Smart Attendance
+              Attend AI
             </h1>
             <p className="mt-2 max-w-xl text-slate-600 dark:text-slate-300">
               These are the screens you get after sign-in: multi-class face attendance,

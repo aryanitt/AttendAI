@@ -35,10 +35,10 @@ export default function Login() {
       <div className="card-stitch w-full max-w-md p-8 shadow-stitch-lg">
         <div className="mb-8 text-center">
           <div className="mx-auto mb-4 flex h-14 w-14 items-center justify-center rounded-3xl bg-gradient-to-br from-indigo-500 to-violet-500 text-2xl font-bold text-white shadow-lg shadow-indigo-500/40">
-            S
+            A
           </div>
           <h1 className="font-display text-2xl font-semibold text-slate-900 dark:text-white">
-            Welcome back
+            Welcome to AttendAi
           </h1>
           <p className="mt-1 text-sm text-slate-500 dark:text-slate-400">
             Sign in to manage classes and attendance

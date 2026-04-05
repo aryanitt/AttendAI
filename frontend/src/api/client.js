@@ -1,7 +1,7 @@
 import axios from "axios";
 
 const client = axios.create({
-  baseURL: "/api",
+  baseURL: import.meta.env.VITE_API_BASE_URL || "/api",
 });
 
 export function setAuthToken(token) {
@@ -36,5 +36,18 @@ export async function downloadReport(url, filename) {
   a.click();
   URL.revokeObjectURL(a.href);
 }
+
+client.interceptors.response.use(
+  (response) => response,
+  (error) => {
+    if (error.response && error.response.status === 401) {
+      // Clear token and force logout on 401 Unauthorized
+      localStorage.removeItem("sat_token");
+      delete client.defaults.headers.common.Authorization;
+      window.location.href = "/login";
+    }
+    return Promise.reject(error);
+  }
+);
 
 export default client;

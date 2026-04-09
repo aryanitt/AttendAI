@@ -15,5 +15,8 @@ class Config:
     FACE_MODEL = os.getenv("FACE_MODEL", "Facenet")
     FACE_THRESHOLD = float(os.getenv("FACE_THRESHOLD", "0.65"))
     BASE_DIR = os.path.abspath(os.path.join(os.path.dirname(__file__), ".."))
-    UPLOAD_ROOT = os.path.join(BASE_DIR, "data", "uploads")
-    EMBEDDING_ROOT = os.path.join(BASE_DIR, "data", "embeddings")
+    
+    # Support for Render Persistent Disk via DATA_MOUNT_PATH
+    DATA_DIR = os.getenv("DATA_MOUNT_PATH", os.path.join(BASE_DIR, "data"))
+    UPLOAD_ROOT = os.path.join(DATA_DIR, "uploads")
+    EMBEDDING_ROOT = os.path.join(DATA_DIR, "embeddings")

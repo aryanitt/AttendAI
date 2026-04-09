@@ -1,0 +1,27 @@
+services:
+  - type: web
+    name: attend-ai-backend
+    env: python
+    rootDir: backend
+    buildCommand: pip install -r requirements.txt
+    startCommand: gunicorn "app:create_app()" --bind 0.0.0.0:$PORT --timeout 120 --workers 1 --threads 8
+    # A persistent disk is created to ensure your face embeddings and 
+    # student photos are not lost when Render restarts the server.
+    disk:
+      name: data_disk
+      mountPath: /var/data
+      sizeGB: 1
+    envVars:
+      - key: PYTHON_VERSION
+        value: 3.10.12
+      - key: DATA_MOUNT_PATH
+        value: /var/data
+      - key: FACE_THRESHOLD
+        value: "0.4"
+      - key: SECRET_KEY
+        generateValue: true
+      - key: JWT_SECRET
+        generateValue: true
+      - key: MONGO_URI
+        # Please insert your actual MongoDB URI here, or set it via the Render Dashboard manually!
+        value: "mongodb+srv://dhruvgupta9713_db_user:YhsRHWYnGznooYHO@cluster0.p754fje.mongodb.net/smart_attendance_db?retryWrites=true&w=majority&appName=Cluster0"

@@ -11,5 +11,8 @@ export default function RequireAuth({ children }) {
       </div>
     );
   }
+  if (!teacher) {
+    return <Navigate to="/login" replace state={{ from: loc.pathname }} />;
+  }
   return children;
 }

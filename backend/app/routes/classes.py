@@ -7,6 +7,7 @@ from flask import Blueprint, current_app, jsonify, request
 
 from ..auth_utils import require_auth
 from ..db import get_db
+from ..face_service import embedding_path
 from ..utils import parse_oid, serialize_doc
 
 bp = Blueprint("classes", __name__)
@@ -21,7 +22,6 @@ def _class_owned(db, class_id: ObjectId, teacher_id: ObjectId):
 def list_classes():
     db = get_db()
     tid = request.teacher["_id"]
-        
     rows = list(db.classes.find({"teacher_id": tid}).sort("created_at", -1))
     out = []
     for c in rows:
@@ -43,10 +43,8 @@ def create_class():
     subject = (data.get("subject") or "").strip() or None
     year_semester = (data.get("year_semester") or data.get("semester") or "").strip()
     db = get_db()
-    tid = request.teacher["_id"]
-        
     doc = {
-        "teacher_id": tid,
+        "teacher_id": request.teacher["_id"],
         "class_name": name,
         "subject": subject,
         "year_semester": year_semester or None,
@@ -113,11 +111,10 @@ def delete_class(class_id):
     db.students.delete_many({"class_id": cid})
     db.attendance.delete_many({"class_id": cid})
     db.classes.delete_one({"_id": cid})
-    
-    # GridFS cleanup
-    from ..face_service import remove_student_embedding
-    # Note: Currently remove_student_embedding removes for an individual, 
-    # we need a helper to clear a whole class or we just let Orphaned GridFS exist.
-    # For now, let's just avoid the file error.
-    
+    ep = embedding_path(str(cid))
+    if os.path.isfile(ep):
+        os.remove(ep)
+    folder = os.path.join(current_app.config["UPLOAD_ROOT"], str(cid))
+    if os.path.isdir(folder):
+        shutil.rmtree(folder, ignore_errors=True)
     return jsonify({"ok": True})

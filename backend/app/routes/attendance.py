@@ -28,8 +28,8 @@ def _owned_class(db, class_id: str, teacher_id: ObjectId):
 
 
 def _upsert_mark(db, cid: ObjectId, sid: ObjectId, status: str = "present"):
-    today = datetime.now(timezone.utc).strftime("%Y-%m-%d")
-    now = datetime.now(timezone.utc).strftime("%H:%M:%S")
+    today = datetime.now().strftime("%Y-%m-%d")
+    now = datetime.now().strftime("%H:%M:%S")
     db.attendance.update_one(
         {"class_id": cid, "student_id": sid, "date": today},
         {
@@ -177,7 +177,7 @@ def manual_mark(class_id):
         {
             "class_id": cid,
             "student_id": sid,
-            "date": datetime.now(timezone.utc).strftime("%Y-%m-%d"),
+            "date": datetime.now().strftime("%Y-%m-%d"),
         }
     )
     return jsonify({"record": serialize_doc(r)})

@@ -8,15 +8,12 @@ def _origins():
 
 class Config:
     SECRET_KEY = os.getenv("SECRET_KEY", "dev-secret-change-me")
-    MONGO_URI = "mongodb+srv://dhruvgupta9713_db_user:YhsRHWYnGznooYHO@cluster0.p754fje.mongodb.net/smart_attendance_db?retryWrites=true&w=majority&appName=Cluster0"
+    MONGO_URI = os.getenv("MONGO_URI", "mongodb://localhost:27017/smart_attendance_db")
     JWT_SECRET = os.getenv("JWT_SECRET", "dev-jwt-change-me")
     JWT_EXP_HOURS = int(os.getenv("JWT_EXP_HOURS", "72"))
     CORS_ORIGINS = _origins()
     FACE_MODEL = os.getenv("FACE_MODEL", "Facenet")
     FACE_THRESHOLD = float(os.getenv("FACE_THRESHOLD", "0.65"))
     BASE_DIR = os.path.abspath(os.path.join(os.path.dirname(__file__), ".."))
-    
-    # Support for Render Persistent Disk via DATA_MOUNT_PATH
-    DATA_DIR = os.getenv("DATA_MOUNT_PATH", os.path.join(BASE_DIR, "data"))
-    UPLOAD_ROOT = os.path.join(DATA_DIR, "uploads")
-    EMBEDDING_ROOT = os.path.join(DATA_DIR, "embeddings")
+    UPLOAD_ROOT = os.path.join(BASE_DIR, "data", "uploads")
+    EMBEDDING_ROOT = os.path.join(BASE_DIR, "data", "embeddings")

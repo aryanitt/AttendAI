@@ -1,7 +1,8 @@
 import axios from "axios";
 
 const client = axios.create({
-  baseURL: import.meta.env.VITE_API_BASE_URL || "/api",
+  baseURL: "/api",
+  headers: { "Content-Type": "application/json" },
 });
 
 export function setAuthToken(token) {
@@ -20,12 +21,10 @@ if (saved) {
 }
 
 export async function downloadReport(url, filename) {
-  // If the url starts with /api/, we strip it because axios.get with baseURL "/api" 
-  // would result in /api/api/...
-  const cleanUrl = url.startsWith("/api") ? url.slice(4) : url;
-  
-  const res = await client.get(cleanUrl, {
+  const token = localStorage.getItem("sat_token");
+  const res = await axios.get(url, {
     responseType: "blob",
+    headers: token ? { Authorization: `Bearer ${token}` } : {},
   });
   const blob = new Blob([res.data], {
     type: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
@@ -36,18 +35,5 @@ export async function downloadReport(url, filename) {
   a.click();
   URL.revokeObjectURL(a.href);
 }
-
-client.interceptors.response.use(
-  (response) => response,
-  (error) => {
-    if (error.response && error.response.status === 401) {
-      // Clear token and force logout on 401 Unauthorized
-      localStorage.removeItem("sat_token");
-      delete client.defaults.headers.common.Authorization;
-      window.location.href = "/login";
-    }
-    return Promise.reject(error);
-  }
-);
 
 export default client;

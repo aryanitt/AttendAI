@@ -17,8 +17,8 @@ export function AuthProvider({ children }) {
   const refresh = useCallback(async () => {
     const t = localStorage.getItem("sat_token");
     if (!t) {
-      setLoading(false);
       setTeacher(null);
+      setLoading(false);
       return;
     }
     setAuthToken(t);

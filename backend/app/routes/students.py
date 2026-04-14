@@ -90,18 +90,6 @@ def patch_student(class_id, student_id):
     return jsonify({"student": serialize_doc(st)})
 
 
-@bp.get("/students/<student_id>/photo")
-def get_student_photo(student_id):
-    from flask import Response
-    from app.db import get_gridfs
-    fs = get_gridfs()
-    # Path in gridfs is "photo_{student_id}"
-    f = fs.find_one({"filename": f"photo_{student_id}"})
-    if not f:
-        return "Not found", 404
-    return Response(f.read(), mimetype="image/jpeg")
-
-
 @bp.delete("/classes/<class_id>/students/<student_id>")
 @require_auth
 def delete_student(class_id, student_id):
@@ -116,18 +104,14 @@ def delete_student(class_id, student_id):
     st = db.students.find_one({"_id": sid, "class_id": cid})
     if not st:
         return jsonify({"error": "Student not found"}), 404
-    
     db.attendance.delete_many({"class_id": cid, "student_id": sid})
     db.students.delete_one({"_id": sid})
-    
-    # GridFS cleanup
-    from app.db import get_gridfs
-    fs = get_gridfs()
     remove_student_embedding(str(cid), str(sid))
-    old = fs.find_one({"filename": f"photo_{sid}"})
-    if old:
-        fs.delete(old._id)
-        
+    folder = os.path.join(current_app.config["UPLOAD_ROOT"], str(cid))
+    for ext in (".jpg", ".jpeg", ".png", ".webp"):
+        p = os.path.join(folder, f"{sid}{ext}")
+        if os.path.isfile(p):
+            os.remove(p)
     return jsonify({"ok": True})
 
 
@@ -145,39 +129,26 @@ def enroll_face(class_id, student_id):
     st = db.students.find_one({"_id": sid, "class_id": cid})
     if not st:
         return jsonify({"error": "Student not found"}), 404
-        
     if "file" not in request.files:
-        return jsonify({"error": "file(s) required (multipart)"}), 400
-        
-    fs = request.files.getlist("file")
-    if not fs or len(fs) > 4:
-        return jsonify({"error": "Please upload between 1 and 4 photos"}), 400
-        
-    raw_list = []
-    for f in fs:
-        raw = f.read()
-        if raw:
-            raw_list.append(raw)
-            
-    if not raw_list:
-        return jsonify({"error": "Empty file(s)"}), 400
-        
+        return jsonify({"error": "file required (multipart)"}), 400
+    f = request.files["file"]
+    raw = f.read()
+    if not raw:
+        return jsonify({"error": "Empty file"}), 400
     try:
-        enroll_student_face(str(cid), str(sid), raw_list)
+        enroll_student_face(str(cid), str(sid), raw)
     except ValueError as e:
         return jsonify({"error": str(e)}), 400
     except Exception as e:
         return jsonify({"error": f"Face processing failed: {e!s}"}), 400
-        
-    # Save the first one as the profile shot in GridFS
-    from app.db import get_gridfs
-    gfs = get_gridfs()
-    fn = f"photo_{sid}"
-    old = gfs.find_one({"filename": fn})
-    if old:
-        gfs.delete(old._id)
-    gfs.put(raw_list[0], filename=fn)
-        
+    os.makedirs(
+        os.path.join(current_app.config["UPLOAD_ROOT"], str(cid)), exist_ok=True
+    )
+    path = os.path.join(
+        current_app.config["UPLOAD_ROOT"], str(cid), f"{sid}.jpg"
+    )
+    with open(path, "wb") as out:
+        out.write(raw)
     db.students.update_one(
         {"_id": sid},
         {

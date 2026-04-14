@@ -2,6 +2,8 @@
 @tailwind components;
 @tailwind utilities;
 
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&family=Outfit:wght@400;500;600;700;800;900&display=swap');
+
 :root {
   --stitch-bg: 248 250 252;
   --stitch-surface: 255 255 255;
@@ -9,42 +11,243 @@
   --stitch-muted: 100 116 139;
   --stitch-accent: 99 102 241;
   --stitch-accent2: 139 92 246;
+  --shadow-stitch: 0 4px 24px -4px rgba(99,102,241,0.12), 0 1px 3px rgba(0,0,0,0.06);
+  --shadow-stitch-lg: 0 8px 40px -8px rgba(99,102,241,0.22), 0 2px 8px rgba(0,0,0,0.08);
 }
 
 .dark {
   --stitch-bg: 15 23 42;
-  --stitch-surface: 30 41 59;
+  --stitch-surface: 22 32 55;
   --stitch-border: 51 65 85;
   --stitch-muted: 148 163 184;
   --stitch-accent: 129 140 248;
   --stitch-accent2: 167 139 250;
+  --shadow-stitch: 0 4px 24px -4px rgba(99,102,241,0.2), 0 1px 3px rgba(0,0,0,0.3);
+  --shadow-stitch-lg: 0 8px 40px -8px rgba(99,102,241,0.35), 0 2px 8px rgba(0,0,0,0.4);
 }
 
 @layer base {
+  * {
+    box-sizing: border-box;
+  }
+  html {
+    font-family: 'Inter', system-ui, sans-serif;
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+  }
   body {
-    @apply min-h-screen bg-stitch-bg text-slate-900 dark:text-slate-100 antialiased;
+    @apply min-h-screen bg-stitch-bg text-slate-900 dark:text-slate-100;
     background-image:
-      radial-gradient(ellipse 120% 80% at 0% -20%, rgb(99 102 241 / 0.12), transparent),
-      radial-gradient(ellipse 80% 60% at 100% 0%, rgb(139 92 246 / 0.1), transparent);
+      radial-gradient(ellipse 120% 80% at 0% -20%, rgb(99 102 241 / 0.1), transparent),
+      radial-gradient(ellipse 80% 60% at 100% 0%, rgb(139 92 246 / 0.08), transparent);
   }
   .dark body {
     background-image:
-      radial-gradient(ellipse 120% 80% at 0% -20%, rgb(99 102 241 / 0.2), transparent),
-      radial-gradient(ellipse 80% 60% at 100% 0%, rgb(139 92 246 / 0.15), transparent);
+      radial-gradient(ellipse 120% 80% at 0% -20%, rgb(99 102 241 / 0.18), transparent),
+      radial-gradient(ellipse 80% 60% at 100% 0%, rgb(139 92 246 / 0.12), transparent);
+  }
+  .font-display {
+    font-family: 'Outfit', 'Inter', system-ui, sans-serif;
   }
 }
 
+/* ── Shadows ── */
+.shadow-stitch {
+  box-shadow: var(--shadow-stitch);
+}
+.shadow-stitch-lg {
+  box-shadow: var(--shadow-stitch-lg);
+}
+
+/* ── Background color utilities ── */
+.bg-stitch-bg {
+  background-color: rgb(var(--stitch-bg));
+}
+.bg-stitch-surface {
+  background-color: rgb(var(--stitch-surface));
+}
+.border-stitch-border {
+  border-color: rgb(var(--stitch-border));
+}
+.text-stitch-muted {
+  color: rgb(var(--stitch-muted));
+}
+
+/* ── Keyframe Animations ── */
+@keyframes fade-in-up {
+  from { opacity: 0; transform: translateY(16px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+@keyframes fade-in {
+  from { opacity: 0; }
+  to   { opacity: 1; }
+}
+@keyframes slide-in-left {
+  from { opacity: 0; transform: translateX(-24px); }
+  to   { opacity: 1; transform: translateX(0); }
+}
+@keyframes scale-in {
+  from { opacity: 0; transform: scale(0.92); }
+  to   { opacity: 1; transform: scale(1); }
+}
+@keyframes pulse-ring {
+  0%   { transform: scale(0.85); opacity: 0.7; }
+  70%  { transform: scale(1.2); opacity: 0; }
+  100% { transform: scale(1.2); opacity: 0; }
+}
+@keyframes shimmer {
+  0%   { background-position: -200% center; }
+  100% { background-position: 200% center; }
+}
+@keyframes bounce-gentle {
+  0%, 100% { transform: translateY(0); }
+  50%       { transform: translateY(-4px); }
+}
+@keyframes spin-slow {
+  from { transform: rotate(0deg); }
+  to   { transform: rotate(360deg); }
+}
+@keyframes progress-fill {
+  from { width: 0%; }
+  to   { width: var(--target-width, 100%); }
+}
+
+/* ── Animation Utilities ── */
+.animate-fade-in-up {
+  animation: fade-in-up 0.45s cubic-bezier(0.16,1,0.3,1) both;
+}
+.animate-fade-in {
+  animation: fade-in 0.3s ease both;
+}
+.animate-slide-in-left {
+  animation: slide-in-left 0.4s cubic-bezier(0.16,1,0.3,1) both;
+}
+.animate-scale-in {
+  animation: scale-in 0.35s cubic-bezier(0.16,1,0.3,1) both;
+}
+.animate-pulse-ring {
+  animation: pulse-ring 1.5s cubic-bezier(0.215,0.61,0.355,1) infinite;
+}
+.animate-bounce-gentle {
+  animation: bounce-gentle 2s ease-in-out infinite;
+}
+.animate-spin-slow {
+  animation: spin-slow 3s linear infinite;
+}
+
+/* ── Animation Delays ── */
+.delay-75  { animation-delay: 75ms; }
+.delay-100 { animation-delay: 100ms; }
+.delay-150 { animation-delay: 150ms; }
+.delay-200 { animation-delay: 200ms; }
+.delay-300 { animation-delay: 300ms; }
+.delay-400 { animation-delay: 400ms; }
+.delay-500 { animation-delay: 500ms; }
+
 @layer components {
+  /* ── Cards ── */
   .card-stitch {
-    @apply rounded-3xl border border-stitch-border/60 bg-stitch-surface shadow-sm;
+    @apply rounded-3xl border border-stitch-border bg-stitch-surface shadow-stitch backdrop-blur-sm transition-shadow;
   }
+  .card-stitch:hover {
+    box-shadow: var(--shadow-stitch-lg);
+  }
+  .card-glass {
+    @apply rounded-3xl border border-white/20 bg-white/10 backdrop-blur-xl;
+  }
+
+  /* ── Buttons ── */
   .btn-primary {
-    @apply inline-flex items-center justify-center gap-2 rounded-2xl bg-gradient-to-r from-indigo-500 to-violet-500 px-5 py-2.5 text-sm font-semibold text-white shadow-lg shadow-indigo-500/25 transition hover:brightness-110 active:scale-[0.98];
+    @apply inline-flex items-center justify-center gap-2 rounded-2xl bg-gradient-to-r from-indigo-500 to-violet-500 px-5 py-2.5 text-sm font-semibold text-white shadow-lg shadow-indigo-500/25 transition-all hover:brightness-110 hover:shadow-indigo-500/40 active:scale-[0.97] disabled:opacity-60 disabled:cursor-not-allowed;
   }
   .btn-ghost {
-    @apply inline-flex items-center justify-center gap-2 rounded-2xl border border-stitch-border bg-stitch-surface/60 px-4 py-2 text-sm font-medium text-slate-700 transition hover:bg-stitch-surface dark:text-slate-200;
+    @apply inline-flex items-center justify-center gap-2 rounded-2xl border border-stitch-border bg-stitch-surface/60 px-4 py-2 text-sm font-medium text-slate-700 transition-all hover:bg-stitch-surface hover:border-slate-300 active:scale-[0.97] dark:text-slate-200 dark:hover:bg-slate-800/80;
   }
+  .btn-danger {
+    @apply inline-flex items-center justify-center gap-2 rounded-2xl bg-rose-500/10 border border-rose-500/30 px-4 py-2 text-sm font-medium text-rose-600 transition-all hover:bg-rose-500/20 active:scale-[0.97] dark:text-rose-400;
+  }
+  .btn-success {
+    @apply inline-flex items-center justify-center gap-2 rounded-2xl bg-emerald-500/10 border border-emerald-500/30 px-4 py-2 text-sm font-medium text-emerald-600 transition-all hover:bg-emerald-500/20 active:scale-[0.97] dark:text-emerald-400;
+  }
+
+  /* ── Inputs ── */
   .input-stitch {
-    @apply w-full rounded-2xl border border-stitch-border bg-white/80 px-4 py-3 text-sm outline-none ring-indigo-500/30 placeholder:text-slate-400 focus:border-indigo-400 focus:ring-2 dark:bg-slate-900/50 dark:text-slate-100;
+    @apply w-full rounded-2xl border border-stitch-border bg-white/80 px-4 py-3 text-sm outline-none ring-indigo-500/30 placeholder:text-slate-400 focus:border-indigo-400 focus:ring-2 transition-all dark:bg-slate-900/50 dark:text-slate-100 dark:focus:border-indigo-500;
+  }
+
+  /* ── Badges ── */
+  .badge {
+    @apply inline-flex items-center gap-1 rounded-full px-2.5 py-0.5 text-xs font-medium;
+  }
+  .badge-present {
+    @apply badge bg-emerald-500/15 text-emerald-600 dark:bg-emerald-500/20 dark:text-emerald-400;
+  }
+  .badge-absent {
+    @apply badge bg-rose-500/15 text-rose-600 dark:bg-rose-500/20 dark:text-rose-400;
+  }
+  .badge-late {
+    @apply badge bg-amber-500/15 text-amber-600 dark:bg-amber-500/20 dark:text-amber-400;
+  }
+  .badge-enrolled {
+    @apply badge bg-indigo-500/15 text-indigo-600 dark:bg-indigo-400/20 dark:text-indigo-300;
+  }
+
+  /* ── Live dot ── */
+  .live-dot {
+    @apply relative inline-flex h-2.5 w-2.5;
+  }
+  .live-dot::before {
+    content: '';
+    @apply absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75;
+    animation: pulse-ring 1.5s cubic-bezier(0.215,0.61,0.355,1) infinite;
+  }
+  .live-dot::after {
+    content: '';
+    @apply relative inline-flex h-2.5 w-2.5 rounded-full bg-emerald-500;
+  }
+
+  /* ── Progress bar ── */
+  .progress-bar {
+    @apply h-2 w-full overflow-hidden rounded-full bg-slate-200 dark:bg-slate-700;
+  }
+  .progress-fill {
+    @apply h-full rounded-full bg-gradient-to-r from-indigo-500 to-violet-500 transition-all duration-700 ease-out;
+  }
+
+  /* ── Drag-drop zone ── */
+  .drop-zone {
+    @apply rounded-3xl border-2 border-dashed border-stitch-border bg-slate-50/50 p-10 text-center transition-all dark:bg-slate-900/30;
+  }
+  .drop-zone.drag-over {
+    @apply border-indigo-400 bg-indigo-50/50 dark:bg-indigo-900/20;
+  }
+
+  /* ── Table ── */
+  .table-stitch {
+    @apply w-full text-left text-sm;
+  }
+  .table-stitch thead {
+    @apply border-b border-stitch-border text-xs font-medium uppercase tracking-wide text-slate-500 dark:border-slate-700;
+  }
+  .table-stitch tbody tr {
+    @apply border-b border-stitch-border/50 transition-colors hover:bg-slate-50/50 dark:border-slate-800/50 dark:hover:bg-slate-800/30;
+  }
+  .table-stitch td, .table-stitch th {
+    @apply px-4 py-3;
+  }
+
+  /* ── Shimmer skeleton ── */
+  .skeleton {
+    @apply rounded-xl bg-gradient-to-r from-slate-200 via-slate-100 to-slate-200 bg-[length:200%_100%] dark:from-slate-700 dark:via-slate-600 dark:to-slate-700;
+    animation: shimmer 1.5s ease-in-out infinite;
+  }
+
+  /* ── Glassmorphic hero gradient ── */
+  .hero-gradient {
+    background: linear-gradient(135deg,
+      hsl(238, 82%, 60%) 0%,
+      hsl(260, 80%, 58%) 40%,
+      hsl(280, 75%, 55%) 100%
+    );
   }
 }

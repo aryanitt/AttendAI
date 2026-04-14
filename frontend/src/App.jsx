@@ -14,8 +14,18 @@ import UploadAttendance from "./pages/class/UploadAttendance.jsx";
 import StudentsPage from "./pages/class/StudentsPage.jsx";
 import RecordsPage from "./pages/class/RecordsPage.jsx";
 import ReportsPage from "./pages/class/ReportsPage.jsx";
+import AnalyticsPage from "./pages/class/AnalyticsPage.jsx";
 
 function PublicOnly({ children }) {
+  const { teacher, loading } = useAuth();
+  if (loading) {
+    return (
+      <div className="flex min-h-screen items-center justify-center text-slate-500">
+        Loading…
+      </div>
+    );
+  }
+  if (teacher) return <Navigate to="/" replace />;
   return children;
 }
 
@@ -63,6 +73,7 @@ export default function App() {
           <Route path="students" element={<StudentsPage />} />
           <Route path="records" element={<RecordsPage />} />
           <Route path="reports" element={<ReportsPage />} />
+          <Route path="analytics" element={<AnalyticsPage />} />
         </Route>
       </Route>
       <Route path="*" element={<Navigate to="/" replace />} />

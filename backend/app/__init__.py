@@ -16,8 +16,10 @@ def create_app():
 
     CORS(
         app,
-        resources={r"/*": {"origins": "*"}},
-        supports_credentials=True
+        resources={r"/api/*": {"origins": app.config["CORS_ORIGINS"]}},
+        supports_credentials=True,
+        allow_headers=["Content-Type", "Authorization"],
+        methods=["GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"],
     )
 
     app.teardown_appcontext(close_db)
@@ -43,10 +45,7 @@ def create_app():
     with app.app_context():
         try:
             init_indexes(app)
-            from .face_service import warmup_models
-            warmup_models()
-        except Exception as e:
-            print(f"[INDEX ERROR/WARMUP ERROR] {e}")
+        except Exception:
             pass
 
     @app.get("/api/health")
@@ -71,12 +70,5 @@ def create_app():
             body, status = json_for_mongo_error(e)
             return body, status
         return {"ok": True, "mongodb": "connected"}
-
-    @app.errorhandler(Exception)
-    def handle_exception(e):
-        print(f"[FATAL ERROR] {e}")
-        import traceback
-        traceback.print_exc()
-        return {"error": str(e)}, 500
 
     return app

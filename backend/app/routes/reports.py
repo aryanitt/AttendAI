@@ -35,8 +35,7 @@ def _xlsx_response(data: bytes, filename: str):
 @require_auth
 def report_daily(class_id):
     db = get_db()
-    teacher_id = request.teacher["_id"]
-    c, cid = _owned_class(db, class_id, teacher_id)
+    c, cid = _owned_class(db, class_id, request.teacher["_id"])
     if not c:
         return jsonify({"error": "Class not found"}), 404
     day = request.args.get("date") or datetime.now(timezone.utc).strftime("%Y-%m-%d")
@@ -66,8 +65,7 @@ def report_daily(class_id):
 @require_auth
 def report_monthly(class_id):
     db = get_db()
-    teacher_id = request.teacher["_id"]
-    c, cid = _owned_class(db, class_id, teacher_id)
+    c, cid = _owned_class(db, class_id, request.teacher["_id"])
     if not c:
         return jsonify({"error": "Class not found"}), 404
     ym = request.args.get("month")  # YYYY-MM
@@ -109,8 +107,7 @@ def report_monthly(class_id):
 @require_auth
 def report_student(class_id, student_id):
     db = get_db()
-    teacher_id = request.teacher["_id"]
-    c, cid = _owned_class(db, class_id, teacher_id)
+    c, cid = _owned_class(db, class_id, request.teacher["_id"])
     if not c:
         return jsonify({"error": "Class not found"}), 404
     try:

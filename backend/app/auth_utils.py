@@ -59,27 +59,16 @@ def require_auth(f):
     def wrapped(*args, **kwargs):
         token = get_bearer_token()
         if not token:
-            return jsonify({"error": "Authentication token required"}), 401
-            
+            return jsonify({"error": "Unauthorized"}), 401
         data = decode_token(token)
         if not data or not data.get("sub"):
             return jsonify({"error": "Invalid or expired token"}), 401
-            
-        try:
-            tid = ObjectId(data["sub"])
-        except Exception:
-            return jsonify({"error": "Invalid user ID in token"}), 401
-            
-        db = get_db()
-        teacher = db.teachers.find_one({"_id": tid})
+        teacher = get_db().teachers.find_one({"_id": ObjectId(data["sub"])})
         if not teacher:
             return jsonify({"error": "User not found"}), 401
-            
         request.teacher = teacher
         request.token_role = data.get("role", "teacher")
         return f(*args, **kwargs)
-
-    return wrapped
 
     return wrapped
 
@@ -87,8 +76,17 @@ def require_auth(f):
 def require_admin(f):
     @functools.wraps(f)
     def wrapped(*args, **kwargs):
-        # Simply use require_auth logic for admin bypass
-        return require_auth(f)(*args, **kwargs)
+        token = get_bearer_token()
+        if not token:
+            return jsonify({"error": "Unauthorized"}), 401
+        data = decode_token(token)
+        if not data or data.get("role") != "admin":
+            return jsonify({"error": "Admin only"}), 403
+        teacher = get_db().teachers.find_one({"_id": ObjectId(data["sub"])})
+        if not teacher:
+            return jsonify({"error": "User not found"}), 401
+        request.teacher = teacher
+        return f(*args, **kwargs)
 
     return wrapped
 

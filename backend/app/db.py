@@ -1,36 +1,35 @@
 from urllib.parse import urlparse
+
 from flask import current_app, g
 from pymongo import MongoClient
-import gridfs
+
 
 def _db_name_from_uri(uri: str) -> str:
     path = (urlparse(uri).path or "/").strip("/")
     return path or "smart_attendance_db"
 
+
 def get_client():
     if "mongo_client" not in g:
-        uri = current_app.config["MONGO_URI"]
         g.mongo_client = MongoClient(
-            uri,
+            current_app.config["MONGO_URI"],
             serverSelectionTimeoutMS=5000,
             connectTimeoutMS=5000,
         )
     return g.mongo_client
+
 
 def get_db():
     uri = current_app.config["MONGO_URI"]
     name = _db_name_from_uri(uri)
     return get_client()[name]
 
-def get_gridfs():
-    if "grid_fs" not in g:
-        g.grid_fs = gridfs.GridFS(get_db())
-    return g.grid_fs
 
 def close_db(_e=None):
     client = g.pop("mongo_client", None)
     if client is not None:
         client.close()
+
 
 def init_indexes(app):
     uri = app.config["MONGO_URI"]

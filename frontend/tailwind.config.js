@@ -5,8 +5,8 @@ export default {
   theme: {
     extend: {
       fontFamily: {
-        sans: ["DM Sans", "Inter", "system-ui", "sans-serif"],
-        display: ["Instrument Sans", "DM Sans", "system-ui", "sans-serif"],
+        sans: ["Inter", "DM Sans", "system-ui", "sans-serif"],
+        display: ["Outfit", "Instrument Sans", "DM Sans", "system-ui", "sans-serif"],
       },
       colors: {
         stitch: {

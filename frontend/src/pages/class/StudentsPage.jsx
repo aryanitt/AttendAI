@@ -1,7 +1,8 @@
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { useParams } from "react-router-dom";
 import toast from "react-hot-toast";
-import { Pencil, Trash2, UserPlus } from "lucide-react";
+import Webcam from "react-webcam";
+import { Camera, Pencil, Trash2, Upload, UserPlus, X } from "lucide-react";
 import client from "../../api/client.js";
 
 export default function StudentsPage() {
@@ -11,6 +12,9 @@ export default function StudentsPage() {
   const [show, setShow] = useState(false);
   const [editId, setEditId] = useState(null);
   const [form, setForm] = useState({ name: "", roll_number: "" });
+  const [enrollId, setEnrollId] = useState(null); // studentId for webcam enrollment
+  const [enrollBusy, setEnrollBusy] = useState(false);
+  const camRef = useRef(null);
 
   const load = async () => {
     setLoading(true);
@@ -24,9 +28,7 @@ export default function StudentsPage() {
     }
   };
 
-  useEffect(() => {
-    load();
-  }, [classId]);
+  useEffect(() => { load(); }, [classId]);
 
   const save = async (e) => {
     e.preventDefault();
@@ -64,42 +66,58 @@ export default function StudentsPage() {
     }
   };
 
-  const enroll = async (studentId, e) => {
-    const files = Array.from(e.target.files || []);
-    if (files.length === 0) return;
-    if (files.length > 4) {
-      toast.error("Maximum 4 photos allowed");
-      e.target.value = "";
-      return;
+  const enrollFile = async (studentId, e) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    await doEnroll(studentId, file);
+    e.target.value = "";
+  };
+
+  const enrollCapture = useCallback(async () => {
+    const shot = camRef.current?.getScreenshot();
+    if (!shot) { toast.error("Camera not ready"); return; }
+    setEnrollBusy(true);
+    try {
+      const blob = await (await fetch(shot)).blob();
+      const file = new File([blob], "webcam.jpg", { type: "image/jpeg" });
+      await doEnroll(enrollId, file);
+      setEnrollId(null);
+    } finally {
+      setEnrollBusy(false);
     }
-    
+  }, [enrollId]);
+
+  const doEnroll = async (studentId, file) => {
     const fd = new FormData();
-    files.forEach(f => fd.append("file", f));
-    
-    const tId = toast.loading(`Enrolling face(s) - Processing ${files.length} images...`);
+    fd.append("file", file);
     try {
       await client.post(
         `/classes/${classId}/students/${studentId}/enroll-face`,
-        fd
+        fd,
+        { headers: { "Content-Type": "multipart/form-data" } }
       );
-      toast.success("Biometrics enrolled successfully", { id: tId });
+      toast.success("Face enrolled ✓");
       load();
     } catch (err) {
-      toast.error(err.response?.data?.error || "Enrollment failed", { id: tId });
-    } finally {
-      e.target.value = "";
+      toast.error(err.response?.data?.error || "Enrollment failed");
     }
   };
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-6 animate-fade-in-up">
       <div className="flex flex-wrap items-center justify-between gap-3">
-        <h3 className="font-display text-lg font-semibold text-slate-900 dark:text-white">
-          Students in this class
-        </h3>
+        <div>
+          <h3 className="font-display text-xl font-bold text-slate-900 dark:text-white">
+            Students
+          </h3>
+          <p className="mt-0.5 text-sm text-slate-500">
+            {rows.length} enrolled · click "Upload face" to enable recognition
+          </p>
+        </div>
         <button
           type="button"
-          className="btn-primary text-sm"
+          id="add-student-btn"
+          className="btn-primary"
           onClick={() => {
             setEditId(null);
             setForm({ name: "", roll_number: "" });
@@ -111,68 +129,109 @@ export default function StudentsPage() {
         </button>
       </div>
 
+      {/* ── Table ── */}
       <div className="card-stitch overflow-x-auto">
-        <table className="w-full min-w-[640px] text-left text-sm">
-          <thead className="border-b border-stitch-border text-xs uppercase text-slate-500 dark:border-slate-700">
+        <table className="table-stitch min-w-[640px]">
+          <thead>
             <tr>
-              <th className="px-4 py-3">Roll</th>
-              <th className="px-4 py-3">Name</th>
-              <th className="px-4 py-3">Face</th>
-              <th className="px-4 py-3 text-right">Actions</th>
+              <th>Roll</th>
+              <th>Name</th>
+              <th>Face</th>
+              <th className="text-right">Actions</th>
             </tr>
           </thead>
           <tbody>
             {loading ? (
+              [1, 2, 3].map((i) => (
+                <tr key={i}>
+                  <td colSpan={4}>
+                    <div className="skeleton mx-4 my-2 h-8 rounded-xl" />
+                  </td>
+                </tr>
+              ))
+            ) : rows.length === 0 ? (
               <tr>
-                <td colSpan={4} className="px-4 py-8 text-center text-slate-500">
-                  Loading…
+                <td colSpan={4} className="py-10 text-center text-slate-500">
+                  No students yet. Add your first student above.
                 </td>
               </tr>
             ) : (
               rows.map((s) => (
-                <tr
-                  key={s.id}
-                  className="border-b border-stitch-border/60 dark:border-slate-800"
-                >
-                  <td className="px-4 py-3 font-mono text-xs">{s.roll_number}</td>
-                  <td className="px-4 py-3 font-medium">{s.name}</td>
-                  <td className="px-4 py-3">
+                <tr key={s.id}>
+                  <td>
+                    <span className="font-mono text-xs text-slate-500">{s.roll_number}</span>
+                  </td>
+                  <td>
+                    <div className="flex items-center gap-2.5">
+                      <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-gradient-to-br from-indigo-500/80 to-violet-500/80 font-display text-sm font-bold text-white">
+                        {s.name?.[0]?.toUpperCase()}
+                      </div>
+                      <span className="font-medium text-slate-900 dark:text-white">{s.name}</span>
+                    </div>
+                  </td>
+                  <td>
                     {s.has_face ? (
-                      <span className="rounded-full bg-emerald-500/15 px-2 py-0.5 text-xs text-emerald-600 dark:text-emerald-400">
-                        Enrolled
-                      </span>
-                    ) : (
-                      <label className="group cursor-pointer text-xs font-medium text-indigo-500 hover:text-indigo-600">
-                        Upload face(s)
-                        <span className="ml-1 text-[10px] text-slate-400 opacity-0 transition group-hover:opacity-100">
-                          (up to 4)
+                      <div className="flex items-center gap-2">
+                        <span className="badge-enrolled">
+                          <Camera className="h-3 w-3" />
+                          Enrolled
                         </span>
-                        <input
-                          type="file"
-                          accept="image/*"
-                          multiple
-                          className="hidden"
-                          onChange={(ev) => enroll(s.id, ev)}
-                        />
-                      </label>
+                        {s.face_enrolled_at && (
+                          <span className="hidden text-xs text-slate-400 sm:inline">
+                            {new Date(s.face_enrolled_at).toLocaleDateString()}
+                          </span>
+                        )}
+                        {/* Re-enroll option */}
+                        <label className="cursor-pointer text-xs text-indigo-500 hover:underline">
+                          Update
+                          <input
+                            type="file"
+                            accept="image/*"
+                            className="hidden"
+                            onChange={(ev) => enrollFile(s.id, ev)}
+                          />
+                        </label>
+                      </div>
+                    ) : (
+                      <div className="flex items-center gap-2">
+                        <label className="inline-flex cursor-pointer items-center gap-1.5 rounded-xl border border-indigo-500/30 bg-indigo-500/10 px-3 py-1.5 text-xs font-medium text-indigo-600 hover:bg-indigo-500/15 transition-colors dark:text-indigo-300">
+                          <Upload className="h-3.5 w-3.5" />
+                          Upload face
+                          <input
+                            type="file"
+                            accept="image/*"
+                            className="hidden"
+                            onChange={(ev) => enrollFile(s.id, ev)}
+                          />
+                        </label>
+                        <button
+                          type="button"
+                          onClick={() => setEnrollId(s.id)}
+                          className="inline-flex items-center gap-1.5 rounded-xl border border-stitch-border px-3 py-1.5 text-xs font-medium text-slate-500 hover:bg-slate-50 transition-colors dark:hover:bg-slate-800/60"
+                          title="Use webcam"
+                        >
+                          <Camera className="h-3.5 w-3.5" />
+                          Webcam
+                        </button>
+                      </div>
                     )}
                   </td>
-                  <td className="px-4 py-3 text-right">
+                  <td className="text-right">
                     <button
                       type="button"
-                      className="btn-ghost mr-1 p-2 text-xs"
+                      className="btn-ghost mr-1 p-2"
                       onClick={() => startEdit(s)}
                       aria-label="Edit"
                     >
-                      <Pencil className="h-4 w-4" />
+                      <Pencil className="h-3.5 w-3.5" />
                     </button>
                     <button
                       type="button"
-                      className="btn-ghost p-2 text-xs text-rose-500 hover:bg-rose-500/10"
+                      className="btn-danger p-2"
                       onClick={() => remove(s.id, s.name)}
                       aria-label="Delete"
                     >
-                      <Trash2 className="h-4 w-4" />
+                      <Trash2 className="h-3.5 w-3.5" />
                     </button>
                   </td>
                 </tr>
@@ -182,53 +241,104 @@ export default function StudentsPage() {
         </table>
       </div>
 
+      {/* ── Add / Edit student modal ── */}
       {show && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4">
-          <div className="card-stitch w-full max-w-md p-6 shadow-stitch-lg">
-            <h4 className="font-display text-lg font-semibold">
-              {editId ? "Edit student" : "Add student"}
-            </h4>
-            <form onSubmit={save} className="mt-4 space-y-4">
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4 backdrop-blur-sm animate-fade-in">
+          <div className="card-stitch w-full max-w-md p-6 shadow-stitch-lg animate-scale-in">
+            <div className="flex items-center justify-between">
+              <h4 className="font-display text-lg font-semibold">
+                {editId ? "Edit student" : "Add student"}
+              </h4>
+              <button type="button" className="btn-ghost p-2" onClick={() => { setShow(false); setEditId(null); }}>
+                <X className="h-4 w-4" />
+              </button>
+            </div>
+            <form onSubmit={save} className="mt-5 space-y-4">
               <div>
-                <label className="mb-1 block text-xs font-medium">Name</label>
+                <label className="mb-1.5 block text-xs font-semibold uppercase tracking-wide text-slate-500">
+                  Full name
+                </label>
                 <input
+                  id="student-form-name"
                   className="input-stitch"
+                  placeholder="e.g. Arjun Sharma"
                   value={form.name}
-                  onChange={(e) =>
-                    setForm((f) => ({ ...f, name: e.target.value }))
-                  }
+                  onChange={(e) => setForm((f) => ({ ...f, name: e.target.value }))}
                   required
                 />
               </div>
               <div>
-                <label className="mb-1 block text-xs font-medium">
+                <label className="mb-1.5 block text-xs font-semibold uppercase tracking-wide text-slate-500">
                   Roll number
                 </label>
                 <input
-                  className="input-stitch"
+                  id="student-form-roll"
+                  className="input-stitch font-mono"
+                  placeholder="e.g. CSE2401"
                   value={form.roll_number}
-                  onChange={(e) =>
-                    setForm((f) => ({ ...f, roll_number: e.target.value }))
-                  }
+                  onChange={(e) => setForm((f) => ({ ...f, roll_number: e.target.value }))}
                   required
                 />
               </div>
               <div className="flex justify-end gap-2">
-                <button
-                  type="button"
-                  className="btn-ghost"
-                  onClick={() => {
-                    setShow(false);
-                    setEditId(null);
-                  }}
-                >
+                <button type="button" className="btn-ghost" onClick={() => { setShow(false); setEditId(null); }}>
                   Cancel
                 </button>
-                <button type="submit" className="btn-primary">
-                  Save
-                </button>
+                <button type="submit" id="student-form-submit" className="btn-primary">Save</button>
               </div>
             </form>
+          </div>
+        </div>
+      )}
+
+      {/* ── Webcam face enrollment modal ── */}
+      {enrollId && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4 backdrop-blur-sm animate-fade-in">
+          <div className="card-stitch w-full max-w-lg p-6 shadow-stitch-lg animate-scale-in">
+            <div className="flex items-center justify-between">
+              <h4 className="font-display text-lg font-semibold">
+                Webcam face enrollment
+              </h4>
+              <button type="button" className="btn-ghost p-2" onClick={() => setEnrollId(null)}>
+                <X className="h-4 w-4" />
+              </button>
+            </div>
+            <p className="mt-1.5 text-sm text-slate-500">
+              Ask the student to look directly at the camera, then capture.
+            </p>
+            <div className="mt-4 overflow-hidden rounded-2xl bg-slate-950">
+              <Webcam
+                ref={camRef}
+                audio={false}
+                screenshotFormat="image/jpeg"
+                videoConstraints={{ facingMode: "user", width: 480, height: 360 }}
+                className="w-full"
+              />
+            </div>
+            <div className="mt-4 flex gap-3">
+              <button type="button" className="btn-ghost flex-1" onClick={() => setEnrollId(null)}>
+                Cancel
+              </button>
+              <button
+                type="button"
+                id="webcam-enroll-capture"
+                className="btn-primary flex-1"
+                onClick={enrollCapture}
+                disabled={enrollBusy}
+              >
+                {enrollBusy ? (
+                  <span className="flex items-center gap-2">
+                    <span className="h-4 w-4 animate-spin rounded-full border-2 border-white/30 border-t-white" />
+                    Enrolling…
+                  </span>
+                ) : (
+                  <span className="flex items-center gap-2">
+                    <Camera className="h-4 w-4" />
+                    Capture &amp; enroll
+                  </span>
+                )}
+              </button>
+            </div>
           </div>
         </div>
       )}

@@ -1,23 +1,10 @@
-# Node
-node_modules/
-dist/
-.env
-
-# Python
-__pycache__/
-*.py[cod]
-*$py.class
-venv/
-.venv/
-env/
-.env/
-
-# Data
+backend/__pycache__/
+backend/**/__pycache__/
+backend/.env
 backend/data/
-backend/embeddings/
-*.pkl
-*.db
-
-# OS
+backend/venv/
+backend/.venv/
+frontend/node_modules/
+frontend/dist/
 .DS_Store
-Thumbs.db
+*.pyc

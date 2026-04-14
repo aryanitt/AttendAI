@@ -12,22 +12,10 @@ _DEEPFACE = None
 def _deepface():
     global _DEEPFACE
     if _DEEPFACE is None:
-        print("DEBUG: Pre-loading DeepFace and AI models...")
         from deepface import DeepFace
+
         _DEEPFACE = DeepFace
-        # Warmup with a tiny dummy image to force model loading into memory
-        try:
-            dummy = np.zeros((160, 160, 3), dtype=np.uint8)
-            _DEEPFACE.represent(img_path=dummy, model_name="Facenet", enforce_detection=False)
-            print("DEBUG: AI Models warmed up and ready!")
-        except Exception as e:
-            print(f"DEBUG: Warmup notice (non-fatal): {e}")
     return _DEEPFACE
-
-
-def warmup_models():
-    """Call this from app startup to avoid first-request delay"""
-    _deepface()
 
 
 def _model_name() -> str:
@@ -38,49 +26,36 @@ def _threshold() -> float:
     return float(current_app.config.get("FACE_THRESHOLD", 0.55))
 
 
-def _grid_filename(class_id: str) -> str:
-    return f"embeddings_{class_id}.pkl"
+def embedding_path(class_id: str) -> str:
+    root = current_app.config["EMBEDDING_ROOT"]
+    os.makedirs(root, exist_ok=True)
+    return os.path.join(root, f"{class_id}.pkl")
 
 
 def load_embeddings(class_id: str) -> dict[str, np.ndarray]:
-    from app.db import get_gridfs
-    fs = get_gridfs()
-    fn = _grid_filename(class_id)
-    try:
-        f = fs.find_one({"filename": fn})
-        if not f:
-            return {}
-        raw = pickle.loads(f.read())
-        out = {}
-        for sid, vec in raw.items():
-            out[str(sid)] = np.asarray(vec, dtype=np.float64)
-        return out
-    except Exception as e:
-        print(f"DEBUG: Error loading GridFS embeddings: {e}")
+    path = embedding_path(class_id)
+    if not os.path.isfile(path):
         return {}
+    with open(path, "rb") as f:
+        raw = pickle.load(f)
+    out = {}
+    for sid, vec in raw.items():
+        out[str(sid)] = np.asarray(vec, dtype=np.float64)
+    return out
 
 
 def save_embeddings(class_id: str, data: dict[str, np.ndarray]) -> None:
-    from app.db import get_gridfs
-    fs = get_gridfs()
-    fn = _grid_filename(class_id)
-    
+    path = embedding_path(class_id)
+    os.makedirs(os.path.dirname(path), exist_ok=True)
     serial = {k: v.tolist() for k, v in data.items()}
-    blob = pickle.dumps(serial)
-    
-    # Remove old version if exists
-    old = fs.find_one({"filename": fn})
-    if old:
-        fs.delete(old._id)
-        
-    fs.put(blob, filename=fn)
+    with open(path, "wb") as f:
+        pickle.dump(serial, f)
 
 
 def remove_student_embedding(class_id: str, student_id: str) -> None:
     data = load_embeddings(class_id)
-    if str(student_id) in data:
-        data.pop(str(student_id))
-        save_embeddings(class_id, data)
+    data.pop(str(student_id), None)
+    save_embeddings(class_id, data)
 
 
 def _cosine(a: np.ndarray, b: np.ndarray) -> float:
@@ -100,43 +75,16 @@ def image_bytes_to_bgr(data: bytes) -> np.ndarray:
 
 
 def get_embedding_from_bgr(img_bgr: np.ndarray) -> np.ndarray:
-    import time
-    t0 = time.time()
-    
-    # Performance Optimization: Resize large images to speed up detection
-    h, w = img_bgr.shape[:2]
-    max_dim = 640
-    if max(h, w) > max_dim:
-        scale = max_dim / max(h, w)
-        img_bgr = cv2.resize(img_bgr, (int(w * scale), int(h * scale)))
-        print(f"DEBUG: Resized image from {w}x{h} to {img_bgr.shape[1]}x{img_bgr.shape[0]} for speed")
-        
     DeepFace = _deepface()
     rgb = cv2.cvtColor(img_bgr, cv2.COLOR_BGR2RGB)
-    
-    try:
-        reps = DeepFace.represent(
-            img_path=rgb,
-            model_name=_model_name(),
-            enforce_detection=True,
-            detector_backend="opencv",
-        )
-    except Exception as e:
-        print(f"DEBUG: opencv fallback triggered ({e})")
-        reps = DeepFace.represent(
-            img_path=rgb,
-            model_name=_model_name(),
-            enforce_detection=False,
-            detector_backend="skip",
-        )
-    
+    reps = DeepFace.represent(
+        img_path=rgb,
+        model_name=_model_name(),
+        enforce_detection=True,
+        detector_backend="opencv",
+    )
     if not reps:
-        print("DEBUG: DeepFace.represent returned no results")
         raise ValueError("No face detected")
-        
-    dur = time.time() - t0
-    print(f"DEBUG: AI inference took {dur:.3f}s")
-    
     emb = np.asarray(reps[0]["embedding"], dtype=np.float64)
     return emb
 
@@ -204,30 +152,9 @@ def match_embedding(
     return None, best_sim
 
 
-def enroll_student_face(class_id: str, student_id: str, images_list: list[bytes]) -> None:
-    embeddings = []
-    for raw in images_list:
-        try:
-            bgr = image_bytes_to_bgr(raw)
-            emb = get_embedding_from_bgr(bgr)
-            embeddings.append(emb)
-        except Exception as e:
-            import traceback
-            traceback.print_exc()
-            print(f"DEBUG: Error processing one image for {student_id}: {e}")
-            continue
-            
-    if not embeddings:
-        raise ValueError("No faces detected in any of the uploaded images")
-        
-    # Average all embeddings to create a more robust single vector
-    final_emb = np.mean(embeddings, axis=0)
-    
-    # Re-normalize (optional but recommended for cosine similarity)
-    norm = np.linalg.norm(final_emb)
-    if norm > 1e-9:
-        final_emb = final_emb / norm
-        
+def enroll_student_face(class_id: str, student_id: str, image_bytes: bytes) -> None:
+    bgr = image_bytes_to_bgr(image_bytes)
+    emb = get_embedding_from_bgr(bgr)
     data = load_embeddings(class_id)
-    data[str(student_id)] = final_emb
+    data[str(student_id)] = emb
     save_embeddings(class_id, data)

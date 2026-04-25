@@ -3,6 +3,7 @@ import { useParams } from "react-router-dom";
 import toast from "react-hot-toast";
 import { CheckCircle2, Clock, Filter, XCircle } from "lucide-react";
 import client from "../../api/client.js";
+import { swrFetch } from "../../lib/cache.js";
 
 const statusConfig = {
   present: {
@@ -32,36 +33,30 @@ export default function RecordsPage() {
   const PER_PAGE = 20;
 
   useEffect(() => {
-    let cancelled = false;
-    (async () => {
-      try {
-        const { data } = await client.get(`/classes/${classId}/students`);
-        if (!cancelled) setStudents(data.students || []);
-      } catch {
-        if (!cancelled) setStudents([]);
-      }
-    })();
-    return () => { cancelled = true; };
+    swrFetch(
+      `class_students_${classId}`,
+      async () => { const { data } = await client.get(`/classes/${classId}/students`); return data.students || []; },
+      (data) => setStudents(data),
+      5 * 60 * 1000
+    );
   }, [classId]);
 
   useEffect(() => {
     setPage(1);
-    let cancelled = false;
-    (async () => {
-      const params = new URLSearchParams();
-      if (date) params.set("date", date);
-      if (studentId) params.set("student_id", studentId);
-      const q = params.toString();
-      try {
-        const { data } = await client.get(
-          `/classes/${classId}/attendance${q ? `?${q}` : ""}`
-        );
-        if (!cancelled) setRecords(data.records || []);
-      } catch {
-        if (!cancelled) setRecords([]);
-      }
-    })();
-    return () => { cancelled = true; };
+    const params = new URLSearchParams();
+    if (date) params.set("date", date);
+    if (studentId) params.set("student_id", studentId);
+    const q = params.toString();
+    
+    swrFetch(
+      `class_records_${classId}_${q}`,
+      async () => {
+        const { data } = await client.get(`/classes/${classId}/attendance${q ? `?${q}` : ""}`);
+        return data.records || [];
+      },
+      (data) => setRecords(data),
+      2 * 60 * 1000
+    );
   }, [classId, date, studentId]);
 
   const manualMark = async (sid, status) => {

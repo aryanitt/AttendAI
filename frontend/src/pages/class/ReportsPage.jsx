@@ -11,6 +11,7 @@ import {
 } from "recharts";
 import { downloadReport } from "../../api/client.js";
 import client from "../../api/client.js";
+import { swrFetch } from "../../lib/cache.js";
 
 export default function ReportsPage() {
   const { classId } = useParams();
@@ -24,27 +25,24 @@ export default function ReportsPage() {
   const [summary, setSummary] = useState(null);
 
   useEffect(() => {
-    (async () => {
-      try {
-        const { data } = await client.get(`/classes/${classId}/students`);
-        setStudents(data.students || []);
-      } catch {
-        setStudents([]);
-      }
-    })();
+    swrFetch(
+      `class_students_${classId}`,
+      async () => { const { data } = await client.get(`/classes/${classId}/students`); return data.students || []; },
+      (data) => setStudents(data),
+      5 * 60 * 1000
+    );
   }, [classId]);
 
   useEffect(() => {
-    (async () => {
-      try {
-        const { data } = await client.get(
-          `/classes/${classId}/analytics/summary`
-        );
-        setSummary(data);
-      } catch {
-        setSummary(null);
-      }
-    })();
+    swrFetch(
+      `class_analytics_summary_${classId}`,
+      async () => {
+        const { data } = await client.get(`/classes/${classId}/analytics/summary`);
+        return data;
+      },
+      (data) => setSummary(data),
+      5 * 60 * 1000
+    );
   }, [classId]);
 
   const dlDaily = async () => {

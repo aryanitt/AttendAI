@@ -2,9 +2,8 @@ services:
   - type: web
     name: attend-ai-backend
     env: python
-    rootDir: backend
     buildCommand: pip install -r requirements.txt
-    startCommand: gunicorn "app:create_app()" --bind 0.0.0.0:$PORT --timeout 120 --workers 1 --threads 8
+    startCommand: gunicorn "app:create_app()" --bind 0.0.0.0:$PORT --timeout 120 --workers 1 --threads 4
     # A persistent disk is created to ensure your face embeddings and 
     # student photos are not lost when Render restarts the server.
     disk:

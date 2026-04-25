@@ -22,6 +22,8 @@ import { useAuth } from "../context/AuthContext.jsx";
 import { useTheme } from "../context/ThemeContext.jsx";
 import client from "../api/client.js";
 import { cn } from "../lib/cn.js";
+import { swrFetch } from "../lib/cache.js";
+import Logo from "./Logo.jsx";
 
 const nav = [
   { to: "/", label: "Dashboard", icon: LayoutDashboard, end: true },
@@ -32,7 +34,9 @@ const nav = [
 function Breadcrumbs({ classList, classId }) {
   const { pathname } = useLocation();
   const parts = [];
-  parts.push({ label: "Dashboard", to: "/" });
+  if (pathname !== "/") {
+    parts.push({ label: "Dashboard", to: "/" });
+  }
   if (pathname.startsWith("/classes")) {
     parts.push({ label: "Classes", to: "/classes" });
   }
@@ -88,18 +92,12 @@ export default function AppShell() {
   const classId = classMatch?.params?.classId;
 
   useEffect(() => {
-    let cancelled = false;
-    (async () => {
-      try {
-        const { data } = await client.get("/classes");
-        if (!cancelled) setClassList(data.classes || []);
-      } catch {
-        if (!cancelled) setClassList([]);
-      }
-    })();
-    return () => {
-      cancelled = true;
-    };
+    swrFetch(
+      "class_list",
+      async () => { const { data } = await client.get("/classes"); return data.classes || []; },
+      (data) => setClassList(data),
+      2 * 60 * 1000 // 2 min TTL
+    );
   }, [loc.pathname]);
 
   const inClass = Boolean(classId);
@@ -116,22 +114,18 @@ export default function AppShell() {
       )}
       <aside
         className={cn(
-          "fixed inset-y-0 left-0 z-40 flex flex-col border-r border-stitch-border bg-stitch-surface/95 backdrop-blur-xl transition-all dark:border-slate-700/80 lg:static lg:translate-x-0",
+          "fixed inset-y-0 left-0 z-40 flex flex-col border-r border-stitch-border bg-stitch-surface transition-all dark:border-slate-700/80 lg:sticky lg:top-0 lg:h-screen lg:translate-x-0",
           collapsed ? "w-[72px]" : "w-64",
           mobileOpen ? "translate-x-0" : "-translate-x-full lg:translate-x-0"
         )}
       >
-        <div className="flex h-16 items-center gap-2 border-b border-stitch-border px-4 dark:border-slate-700/80">
-          <div className="flex h-10 w-10 items-center justify-center rounded-2xl bg-gradient-to-br from-indigo-500 to-violet-500 text-lg font-bold text-white shadow-lg shadow-indigo-500/30">
-            S
-          </div>
+        <div className="flex h-16 items-center gap-3 border-b border-stitch-border px-4 dark:border-slate-700/80">
+          <Logo className="text-[40px] shrink-0" showText={false} />
           {!collapsed && (
             <div>
-              <p className="font-display text-sm font-semibold leading-tight">
-                Smart Attendance
-              </p>
-              <p className="text-xs text-slate-500 dark:text-slate-400">
-                Face · Multi-class
+              <p className="font-display text-2xl font-black leading-none tracking-tight">
+                <span className="text-slate-900 dark:text-white">Attend</span>
+                <span className="ml-1 text-cyan-500">AI</span>
               </p>
             </div>
           )}

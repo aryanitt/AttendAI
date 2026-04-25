@@ -29,7 +29,7 @@ def class_analytics(class_id):
         return jsonify({"error": "Class not found"}), 404
     students = list(db.students.find({"class_id": cid}))
     total = len(students)
-    today = datetime.now(timezone.utc).strftime("%Y-%m-%d")
+    today = datetime.now().strftime("%Y-%m-%d")
     present_today = db.attendance.count_documents(
         {
             "class_id": cid,
@@ -38,7 +38,7 @@ def class_analytics(class_id):
         }
     )
     # Last 14 days trend
-    start = (datetime.now(timezone.utc) - timedelta(days=13)).strftime("%Y-%m-%d")
+    start = (datetime.now() - timedelta(days=13)).strftime("%Y-%m-%d")
     recs = list(
         db.attendance.find(
             {
@@ -69,7 +69,7 @@ def cross_class():
     db = get_db()
     tid = request.teacher["_id"]
     classes = list(db.classes.find({"teacher_id": tid}))
-    today = datetime.now(timezone.utc).strftime("%Y-%m-%d")
+    today = datetime.now().strftime("%Y-%m-%d")
     out = []
     for c in classes:
         cid = c["_id"]

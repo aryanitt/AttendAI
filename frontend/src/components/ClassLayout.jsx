@@ -10,6 +10,7 @@ import {
 import { useEffect, useState } from "react";
 import client from "../api/client.js";
 import { cn } from "../lib/cn.js";
+import { swrFetch } from "../lib/cache.js";
 
 const tabs = [
   { to: "live", label: "Live", icon: Camera },
@@ -25,16 +26,12 @@ export default function ClassLayout() {
   const [cls, setCls] = useState(null);
 
   useEffect(() => {
-    let cancelled = false;
-    (async () => {
-      try {
-        const { data } = await client.get(`/classes/${classId}`);
-        if (!cancelled) setCls(data.class);
-      } catch {
-        if (!cancelled) setCls(null);
-      }
-    })();
-    return () => { cancelled = true; };
+    swrFetch(
+      `class_detail_${classId}`,
+      async () => { const { data } = await client.get(`/classes/${classId}`); return data.class; },
+      (data) => setCls(data),
+      2 * 60 * 1000
+    );
   }, [classId]);
 
   const enrolled = cls?.student_count ?? 0;

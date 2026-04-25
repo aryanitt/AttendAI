@@ -35,19 +35,27 @@ export default function LiveAttendance() {
       if (data.marked) {
         const sid = data.match?.id || data.match?._id;
         if (!autoMode || (sid && !sessionMarked.has(sid))) {
-          toast.success(`✓ Present: ${data.match?.name || "Student"}`);
+          if (data.already_marked) {
+            toast('Already marked today', { icon: 'ℹ️' });
+          } else {
+            toast.success(`✓ Present: ${data.match?.name || "Student"}`);
+          }
           if (sid) {
             setSessionMarked((prev) => new Set(prev).add(sid));
           }
         }
       }
     } catch (err) {
-      const msg = err.response?.data?.error || err.message || "Recognition failed";
+      const data = err.response?.data || {};
+      const msg = data.error || err.message || "Recognition failed";
+      const details = data.details ? ` (${data.details})` : "";
+      
       if (msg.includes("face") || msg.includes("Face") || msg.includes("detect") || msg.includes("No enrolled")) {
         setLast({ match: null, confidence: null, marked: false, error: "No clear face detected" });
       } else {
-        if (!autoMode) toast.error(msg);
-        setLast({ match: null, confidence: null, marked: false, error: msg });
+        const fullMsg = msg + details;
+        if (!autoMode) toast.error(fullMsg);
+        setLast({ match: null, confidence: null, marked: false, error: fullMsg });
       }
     } finally {
       setProcessing(false);
@@ -172,6 +180,27 @@ export default function LiveAttendance() {
           </div>
         ) : (
           <div className="mt-5 space-y-5 animate-scale-in">
+            {/* Status banner */}
+            {last.marked ? (
+              <div className={
+                last.already_marked 
+                  ? "flex items-center gap-3 rounded-2xl bg-indigo-500/10 border border-indigo-500/30 px-4 py-3"
+                  : "flex items-center gap-3 rounded-2xl bg-emerald-500/10 border border-emerald-500/30 px-4 py-3"
+              }>
+                <CheckCircle2 className={`h-5 w-5 shrink-0 ${last.already_marked ? "text-indigo-500" : "text-emerald-500"}`} />
+                <p className={`text-sm font-semibold ${last.already_marked ? "text-indigo-700 dark:text-indigo-300" : "text-emerald-700 dark:text-emerald-300"}`}>
+                  {last.already_marked ? "Already marked today ✓" : "Attendance marked — present ✓"}
+                </p>
+              </div>
+            ) : last.error ? (
+              <div className="flex items-center gap-3 rounded-2xl bg-rose-500/10 border border-rose-500/30 px-4 py-3">
+                <XCircle className="h-5 w-5 shrink-0 text-rose-500" />
+                <p className="text-sm font-semibold text-rose-700 dark:text-rose-300">
+                  {last.error}
+                </p>
+              </div>
+            ) : null}
+
             {/* Student info */}
             {last.match && (
               <div className="rounded-2xl border border-stitch-border bg-slate-50/50 p-4 dark:border-slate-700 dark:bg-slate-800/30">

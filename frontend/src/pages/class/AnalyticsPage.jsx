@@ -13,6 +13,7 @@ import {
 } from "recharts";
 import { BarChart3, TrendingDown, TrendingUp, Users } from "lucide-react";
 import client from "../../api/client.js";
+import { swrFetch } from "../../lib/cache.js";
 
 const DONUT_COLORS = ["#818cf8", "#e2e8f0"];
 const DONUT_COLORS_DARK = ["#818cf8", "#1e293b"];
@@ -56,27 +57,28 @@ export default function AnalyticsPage() {
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    let cancelled = false;
-    (async () => {
-      setLoading(true);
-      try {
+    swrFetch(
+      `class_analytics_full_${classId}`,
+      async () => {
         const [sumRes, stuRes, attRes] = await Promise.all([
           client.get(`/classes/${classId}/analytics/summary`),
           client.get(`/classes/${classId}/students`),
           client.get(`/classes/${classId}/attendance`),
         ]);
-        if (!cancelled) {
-          setSummary(sumRes.data);
-          setStudents(stuRes.data.students || []);
-          setAttendance(attRes.data.records || []);
-        }
-      } catch {
-        if (!cancelled) setSummary(null);
-      } finally {
-        if (!cancelled) setLoading(false);
-      }
-    })();
-    return () => { cancelled = true; };
+        return {
+          summary: sumRes.data,
+          students: stuRes.data.students || [],
+          attendance: attRes.data.records || [],
+        };
+      },
+      (data) => {
+        setSummary(data.summary);
+        setStudents(data.students);
+        setAttendance(data.attendance);
+        setLoading(false);
+      },
+      5 * 60 * 1000
+    );
   }, [classId]);
 
   // Compute per-student present counts

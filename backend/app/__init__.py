@@ -48,6 +48,16 @@ def create_app():
         except Exception:
             pass
 
+        # Pre-load the DeepFace model so the first request is fast
+        try:
+            from .face_service import warmup
+            warmup()
+        except Exception as exc:
+            import logging
+            logging.getLogger(__name__).warning(
+                f"Face model warmup failed (will retry on first request): {exc}"
+            )
+
     @app.get("/api/health")
     def health():
         return {"ok": True}

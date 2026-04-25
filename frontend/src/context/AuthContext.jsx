@@ -7,6 +7,7 @@ import {
   useState,
 } from "react";
 import client, { setAuthToken } from "../api/client.js";
+import { cacheClear } from "../lib/cache.js";
 
 const AuthContext = createContext(null);
 
@@ -60,6 +61,7 @@ export function AuthProvider({ children }) {
   const logout = useCallback(() => {
     setAuthToken(null);
     setTeacher(null);
+    cacheClear();
   }, []);
 
   const value = useMemo(

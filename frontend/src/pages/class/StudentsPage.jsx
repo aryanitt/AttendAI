@@ -4,6 +4,7 @@ import toast from "react-hot-toast";
 import Webcam from "react-webcam";
 import { Camera, Pencil, Trash2, Upload, UserPlus, X } from "lucide-react";
 import client from "../../api/client.js";
+import { swrFetch, cacheDelete } from "../../lib/cache.js";
 
 export default function StudentsPage() {
   const { classId } = useParams();
@@ -17,15 +18,12 @@ export default function StudentsPage() {
   const camRef = useRef(null);
 
   const load = async () => {
-    setLoading(true);
-    try {
-      const { data } = await client.get(`/classes/${classId}/students`);
-      setRows(data.students || []);
-    } catch {
-      setRows([]);
-    } finally {
-      setLoading(false);
-    }
+    swrFetch(
+      `class_students_${classId}`,
+      async () => { const { data } = await client.get(`/classes/${classId}/students`); return data.students || []; },
+      (data) => { setRows(data); setLoading(false); },
+      2 * 60 * 1000
+    );
   };
 
   useEffect(() => { load(); }, [classId]);
@@ -40,6 +38,7 @@ export default function StudentsPage() {
         await client.post(`/classes/${classId}/students`, form);
         toast.success("Student added");
       }
+      cacheDelete(`class_students_${classId}`);
       setShow(false);
       setEditId(null);
       setForm({ name: "", roll_number: "" });
@@ -60,6 +59,7 @@ export default function StudentsPage() {
     try {
       await client.delete(`/classes/${classId}/students/${id}`);
       toast.success("Student removed");
+      cacheDelete(`class_students_${classId}`);
       load();
     } catch (err) {
       toast.error(err.response?.data?.error || "Delete failed");
@@ -97,6 +97,7 @@ export default function StudentsPage() {
         { headers: { "Content-Type": "multipart/form-data" } }
       );
       toast.success("Face enrolled ✓");
+      cacheDelete(`class_students_${classId}`);
       load();
     } catch (err) {
       toast.error(err.response?.data?.error || "Enrollment failed");

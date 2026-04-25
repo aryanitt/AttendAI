@@ -4,8 +4,8 @@ import os
 
 load_dotenv()
 
-MONGODB_URI = os.getenv("MONGODB_URI")
-DB_NAME = os.getenv("DB_NAME", "SmartAttendance")
+MONGODB_URI = os.getenv("MONGO_URI")
+DB_NAME = os.getenv("DB_NAME", "smart_attendance_db")
 
 class Database:
     client: AsyncIOMotorClient = None

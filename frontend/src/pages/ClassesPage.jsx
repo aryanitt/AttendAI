@@ -3,6 +3,7 @@ import { Link } from "react-router-dom";
 import { BookOpen, ChevronRight, Pencil, Plus, Trash2, Users, X } from "lucide-react";
 import toast from "react-hot-toast";
 import client from "../api/client.js";
+import { swrFetch, cacheDelete } from "../lib/cache.js";
 
 const hues = [
   "from-indigo-500 to-violet-500",
@@ -22,15 +23,12 @@ export default function ClassesPage() {
   const [busy, setBusy] = useState(false);
 
   const load = async () => {
-    setLoading(true);
-    try {
-      const { data } = await client.get("/classes");
-      setClasses(data.classes || []);
-    } catch {
-      setClasses([]);
-    } finally {
-      setLoading(false);
-    }
+    swrFetch(
+      "classes_page",
+      async () => { const { data } = await client.get("/classes"); return data.classes || []; },
+      (data) => { setClasses(data); setLoading(false); },
+      2 * 60 * 1000
+    );
   };
 
   useEffect(() => { load(); }, []);
@@ -60,6 +58,9 @@ export default function ClassesPage() {
       }
       setShowCreate(false);
       setEditClass(null);
+      cacheDelete("classes_page");
+      cacheDelete("class_list");
+      cacheDelete("dashboard_stats");
       load();
     } catch (err) {
       toast.error(err.response?.data?.error || "Save failed");
@@ -73,6 +74,9 @@ export default function ClassesPage() {
     try {
       await client.delete(`/classes/${id}`);
       toast.success("Class deleted");
+      cacheDelete("classes_page");
+      cacheDelete("class_list");
+      cacheDelete("dashboard_stats");
       load();
     } catch (err) {
       toast.error(err.response?.data?.error || "Delete failed");

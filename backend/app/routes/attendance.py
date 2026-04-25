@@ -14,6 +14,10 @@ from ..face_service import (
     match_embedding,
 )
 from ..utils import parse_oid, serialize_doc
+import traceback
+import logging
+
+logger = logging.getLogger(__name__)
 
 bp = Blueprint("attendance", __name__)
 
@@ -27,10 +31,10 @@ def _owned_class(db, class_id: str, teacher_id: ObjectId):
     return c, cid
 
 
-def _upsert_mark(db, cid: ObjectId, sid: ObjectId, status: str = "present"):
+def _upsert_mark(db, cid: ObjectId, sid: ObjectId, status: str = "present") -> bool:
     today = datetime.now().strftime("%Y-%m-%d")
     now = datetime.now().strftime("%H:%M:%S")
-    db.attendance.update_one(
+    result = db.attendance.update_one(
         {"class_id": cid, "student_id": sid, "date": today},
         {
             "$set": {"time": now, "status": status},
@@ -38,92 +42,115 @@ def _upsert_mark(db, cid: ObjectId, sid: ObjectId, status: str = "present"):
         },
         upsert=True,
     )
+    return result.upserted_id is not None
 
 
 @bp.post("/classes/<class_id>/attendance/recognize")
 @require_auth
 def recognize_one(class_id):
-    db = get_db()
-    c, cid = _owned_class(db, class_id, request.teacher["_id"])
-    if not c:
-        return jsonify({"error": "Class not found"}), 404
-    if "file" not in request.files:
-        return jsonify({"error": "file required"}), 400
-    raw = request.files["file"].read()
-    if not raw:
-        return jsonify({"error": "Empty file"}), 400
     try:
-        bgr = image_bytes_to_bgr(raw)
-        emb = get_embedding_from_bgr(bgr)
-    except ValueError as e:
-        return jsonify({"error": str(e)}), 400
+        db = get_db()
+        c, cid = _owned_class(db, class_id, request.teacher["_id"])
+        if not c:
+            return jsonify({"error": "Class not found"}), 404
+        if "file" not in request.files:
+            return jsonify({"error": "file required"}), 400
+        raw = request.files["file"].read()
+        if not raw:
+            return jsonify({"error": "Empty file"}), 400
+        
+        try:
+            bgr = image_bytes_to_bgr(raw)
+            emb = get_embedding_from_bgr(bgr)
+        except ValueError as e:
+            return jsonify({"error": str(e)}), 400
+        except Exception as e:
+            logger.error(f"Detection/Embedding error: {str(e)}")
+            return jsonify({"error": f"Recognition service error: {str(e)}"}), 400
+            
+        roster = load_embeddings(str(cid))
+        if not roster:
+            return jsonify({"error": "No enrolled faces for this class"}), 400
+            
+        try:
+            sid_str, sim = match_embedding(emb, roster)
+        except Exception as e:
+            logger.error(f"Matching error: {str(e)}")
+            return jsonify({"error": f"Matching failed: {str(e)}"}), 500
+
+        if not sid_str:
+            return jsonify({"match": None, "confidence": float(sim), "marked": False})
+            
+        sid = ObjectId(sid_str)
+        st = db.students.find_one({"_id": sid, "class_id": cid})
+        if not st:
+            return jsonify({"error": "Matched student not in roster"}), 400
+            
+        is_new = _upsert_mark(db, cid, sid, "present")
+        return jsonify(
+            {
+                "match": serialize_doc(st),
+                "confidence": float(sim),
+                "marked": True,
+                "already_marked": not is_new,
+            }
+        )
     except Exception as e:
-        return jsonify({"error": str(e)}), 400
-    roster = load_embeddings(str(cid))
-    if not roster:
-        return jsonify({"error": "No enrolled faces for this class"}), 400
-    sid_str, sim = match_embedding(emb, roster)
-    if not sid_str:
-        return jsonify({"match": None, "confidence": float(sim), "marked": False})
-    sid = ObjectId(sid_str)
-    st = db.students.find_one({"_id": sid, "class_id": cid})
-    if not st:
-        return jsonify({"error": "Matched student not in roster"}), 400
-    _upsert_mark(db, cid, sid, "present")
-    return jsonify(
-        {
-            "match": serialize_doc(st),
-            "confidence": float(sim),
-            "marked": True,
-        }
-    )
+        logger.error(f"Unhandled recognition error: {traceback.format_exc()}")
+        return jsonify({"error": "Internal server error during recognition", "details": str(e)}), 500
 
 
 @bp.post("/classes/<class_id>/attendance/group-photo")
 @require_auth
 def group_photo(class_id):
-    db = get_db()
-    c, cid = _owned_class(db, class_id, request.teacher["_id"])
-    if not c:
-        return jsonify({"error": "Class not found"}), 404
-    if "file" not in request.files:
-        return jsonify({"error": "file required"}), 400
-    raw = request.files["file"].read()
-    if not raw:
-        return jsonify({"error": "Empty file"}), 400
-    roster = load_embeddings(str(cid))
-    if not roster:
-        return jsonify({"error": "No enrolled faces for this class"}), 400
     try:
-        bgr = image_bytes_to_bgr(raw)
-    except ValueError as e:
-        return jsonify({"error": str(e)}), 400
-    crops = extract_face_crops_bgr(bgr)
-    if not crops:
-        return jsonify({"error": "No faces detected in image"}), 400
-    results = []
-    seen = set()
-    for crop in crops:
+        db = get_db()
+        c, cid = _owned_class(db, class_id, request.teacher["_id"])
+        if not c:
+            return jsonify({"error": "Class not found"}), 404
+        if "file" not in request.files:
+            return jsonify({"error": "file required"}), 400
+        raw = request.files["file"].read()
+        if not raw:
+            return jsonify({"error": "Empty file"}), 400
+        roster = load_embeddings(str(cid))
+        if not roster:
+            return jsonify({"error": "No enrolled faces for this class"}), 400
         try:
-            emb = get_embedding_from_bgr(crop)
-        except Exception:
-            continue
-        sid_str, sim = match_embedding(emb, roster)
-        if not sid_str or sid_str in seen:
-            continue
-        sid = ObjectId(sid_str)
-        st = db.students.find_one({"_id": sid, "class_id": cid})
-        if not st:
-            continue
-        _upsert_mark(db, cid, sid, "present")
-        seen.add(sid_str)
-        results.append(
-            {
-                "student": serialize_doc(st),
-                "confidence": float(sim),
-            }
-        )
-    return jsonify({"marked_count": len(results), "matches": results})
+            bgr = image_bytes_to_bgr(raw)
+        except ValueError as e:
+            return jsonify({"error": str(e)}), 400
+        crops = extract_face_crops_bgr(bgr)
+        if not crops:
+            return jsonify({"error": "No faces detected in image"}), 400
+        results = []
+        seen = set()
+        for crop in crops:
+            try:
+                emb = get_embedding_from_bgr(crop)
+                sid_str, sim = match_embedding(emb, roster)
+                if not sid_str or sid_str in seen:
+                    continue
+                sid = ObjectId(sid_str)
+                st = db.students.find_one({"_id": sid, "class_id": cid})
+                if not st:
+                    continue
+                is_new = _upsert_mark(db, cid, sid, "present")
+                seen.add(sid_str)
+                results.append(
+                    {
+                        "student": serialize_doc(st),
+                        "confidence": float(sim),
+                        "already_marked": not is_new,
+                    }
+                )
+            except Exception as e:
+                logger.warning(f"Failed to process face crop: {str(e)}")
+                continue
+        return jsonify({"marked_count": len(results), "matches": results})
+    except Exception as e:
+        logger.error(f"Unhandled group photo error: {traceback.format_exc()}")
+        return jsonify({"error": "Internal server error during group photo processing", "details": str(e)}), 500
 
 
 @bp.get("/classes/<class_id>/attendance")

@@ -9,7 +9,7 @@ bp = Blueprint("dashboard", __name__)
 
 
 def _today_str():
-    return datetime.now(timezone.utc).strftime("%Y-%m-%d")
+    return datetime.now().strftime("%Y-%m-%d")
 
 
 @bp.get("/stats")
